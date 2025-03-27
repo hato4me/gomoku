@@ -1,21 +1,36 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>五目並べ - ソロプレイ</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <h1>五目並べ（ソロプレイ）</h1>
-  <label for="difficulty">CPUレベル:</label>
-  <select id="difficulty">
-    <option value="1">レベル1（ランダム）</option>
-    <option value="2">レベル2（防御型）</option>
-    <option value="3" selected>レベル3（攻防）</option>
-  </select>
-  <div id="board"></div>
+  <div class="controls">
+    <label for="difficulty">CPUレベル:</label>
+    <select id="difficulty">
+      <option value="1">レベル1（ランダム）</option>
+      <option value="2">レベル2（防御型）</option>
+      <option value="3">レベル3（攻防）</option>
+      <option value="4" selected>レベル4（ミニマックス）</option>
+    </select>
+    <button onclick="undoMove()">待った（残り <span id="undo-count">3</span> 回）</button>
+    <button onclick="resetGame()">リセット</button>
+  </div>
+  <div class="game-container">
+    <div id="coordinate-top"></div>
+    <div class="board-container">
+      <div id="coordinate-left"></div>
+      <div id="board"></div>
+    </div>
+    <div class="log">
+      <h2>棋譜</h2>
+      <ol id="move-log"></ol>
+    </div>
+  </div>
   <p id="status"></p>
-  <button onclick="resetGame()">リセット</button>
   <script src="script.js"></script>
 </body>
 </html>
