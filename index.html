@@ -14,7 +14,8 @@
       <option value="1">レベル1（ランダム）</option>
       <option value="2">レベル2（防御型）</option>
       <option value="3">レベル3（攻防）</option>
-      <option value="4" selected>レベル4（ミニマックス）</option>
+      <option value="5">レベル4A（評価スコア）</option>
+      <option value="6" selected>レベル4B（パターン型）</option>
     </select>
     <button onclick="undoMove()">待った（残り <span id="undo-count">3</span> 回）</button>
     <button onclick="resetGame()">リセット</button>
@@ -27,7 +28,7 @@
     </div>
     <div class="log">
       <h2>棋譜</h2>
-      <ol id="move-log"></ol>
+      <ul id="move-log"></ul>
     </div>
   </div>
   <p id="status"></p>

@@ -98,7 +98,8 @@ function checkWin(x, y, player) {
 function cpuMove() {
   const level = +document.getElementById("difficulty").value;
   let move;
-  if (level === 4) move = minimaxRoot(2);
+  if (level === 6) move = patternAI();
+  else if (level === 5) move = scoreBasedAI();
   else if (level === 3) move = smartMove();
   else if (level === 2) move = defensiveMove();
   else move = randomMove();
@@ -141,77 +142,76 @@ function resetGame() {
   initBoard();
 }
 
-// --- ミニマックス with 近傍限定 ---
-function getCandidateMoves(range = 2) {
-  const candidates = new Set();
+function scoreBasedAI() {
+  let best = null, bestScore = -Infinity;
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
-      if (board[y][x] !== 0) {
-        for (let dy = -range; dy <= range; dy++) {
-          for (let dx = -range; dx <= range; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < boardSize && ny < boardSize && board[ny][nx] === 0) {
-              candidates.add(ny * boardSize + nx);
-            }
-          }
-        }
+      if (board[y][x] !== 0) continue;
+      let score = 0;
+      score += evaluatePosition(x, y, 2) * 1.1;
+      score += evaluatePosition(x, y, 1);
+      const center = Math.floor(boardSize / 2);
+      score -= (Math.abs(x - center) + Math.abs(y - center)) * 0.1;
+      if (score > bestScore) {
+        bestScore = score;
+        best = [x, y];
       }
     }
   }
-  return [...candidates].map(i => [i % boardSize, Math.floor(i / boardSize)]);
+  return best;
 }
 
-function minimaxRoot(depth) {
-  let bestScore = -Infinity, bestMove = null;
-  const candidates = getCandidateMoves();
-  for (const [x, y] of candidates) {
-    board[y][x] = 2;
-    const score = minimax(depth - 1, false);
-    board[y][x] = 0;
-    if (score > bestScore) {
-      bestScore = score;
-      bestMove = [x, y];
+function evaluatePosition(x, y, player) {
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  let score = 0;
+  for (const [dx, dy] of dirs) {
+    let count = 0;
+    for (let i = 1; i < 5; i++) {
+      const nx = x + dx * i, ny = y + dy * i;
+      if (nx < 0 || ny < 0 || nx >= boardSize || ny >= boardSize) break;
+      if (board[ny][nx] === player) count++;
+      else break;
+    }
+    score += Math.pow(10, count);
+  }
+  return score;
+}
+
+function patternAI() {
+  const patterns = [
+    { regex: /2222_/, score: 10000 },
+    { regex: /_1111/, score: 9000 },
+    { regex: /222_2/, score: 8000 },
+    { regex: /_111_/, score: 7000 },
+    { regex: /22_22/, score: 6000 },
+  ];
+  let bestMove = null, bestScore = -Infinity;
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      if (board[y][x] !== 0) continue;
+      board[y][x] = 2;
+      let score = 0;
+      for (const [dx, dy] of [[1,0],[0,1],[1,1],[1,-1]]) {
+        let line = "";
+        for (let i = -4; i <= 4; i++) {
+          const nx = x + dx * i, ny = y + dy * i;
+          if (nx < 0 || ny < 0 || nx >= boardSize || ny >= boardSize) line += "9";
+          else line += board[ny][nx];
+        }
+        for (const { regex, score: s } of patterns) {
+          if (regex.test(line)) score += s;
+        }
+      }
+      board[y][x] = 0;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = [x, y];
+      }
     }
   }
   return bestMove || centerBiasMove();
 }
 
-function minimax(depth, isMax) {
-  if (depth === 0) return evaluateBoard();
-  const candidates = getCandidateMoves();
-  let best = isMax ? -Infinity : Infinity;
-  for (const [x, y] of candidates) {
-    board[y][x] = isMax ? 2 : 1;
-    const score = minimax(depth - 1, !isMax);
-    board[y][x] = 0;
-    best = isMax ? Math.max(best, score) : Math.min(best, score);
-  }
-  return best;
-}
-
-function evaluateBoard() {
-  let score = 0;
-  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      for (const [dx, dy] of dirs) {
-        let count2 = 0, count1 = 0;
-        for (let i = 0; i < 4; i++) {
-          const nx = x + dx * i, ny = y + dy * i;
-          if (nx < boardSize && ny < boardSize) {
-            if (board[ny][nx] === 2) count2++;
-            if (board[ny][nx] === 1) count1++;
-          }
-        }
-        if (count2 > 0 && count1 === 0) score += Math.pow(10, count2);
-        if (count1 > 0 && count2 === 0) score -= Math.pow(10, count1);
-      }
-    }
-  }
-  return score;
-}
-
-// 他のレベルのAI
 function randomMove() {
   const empty = [];
   for (let y = 0; y < boardSize; y++)
