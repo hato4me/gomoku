@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>五目並べ - ソロプレイ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>五目並べ（ソロプレイ）</h1>
+  <label for="difficulty">CPUレベル:</label>
+  <select id="difficulty">
+    <option value="1">レベル1（ランダム）</option>
+    <option value="2">レベル2（防御型）</option>
+    <option value="3" selected>レベル3（攻防）</option>
+  </select>
+  <div id="board"></div>
+  <p id="status"></p>
+  <button onclick="resetGame()">リセット</button>
+  <script src="script.js"></script>
+</body>
+</html>
