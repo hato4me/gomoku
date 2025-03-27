@@ -38,7 +38,7 @@ function initBoard() {
 function drawCoordinates() {
   const coordTop = document.getElementById("coordinate-top");
   const coordLeft = document.getElementById("coordinate-left");
-  coordTop.innerHTML = "";
+  coordTop.innerHTML = '<span></span>';
   coordLeft.innerHTML = "";
   for (let i = 0; i < boardSize; i++) {
     const topSpan = document.createElement("span");
@@ -53,24 +53,20 @@ function drawCoordinates() {
 
 function handlePlayerMove(e) {
   if (gameOver || currentPlayer !== 1) return;
-
   const x = +e.target.dataset.x;
   const y = +e.target.dataset.y;
   if (board[y][x] !== 0) return;
-
   placeStone(x, y, 1);
   moveHistory.push({ x, y, player: 1 });
   addMoveLog("あなた", x, y);
-
   if (checkWin(x, y, 1)) {
     statusP.textContent = "あなたの勝ち！";
     gameOver = true;
     return;
   }
-
   currentPlayer = 2;
   statusP.textContent = "CPUの番です...";
-  setTimeout(cpuMove, 300);
+  setTimeout(cpuMove, 100);
 }
 
 function placeStone(x, y, player) {
@@ -81,14 +77,14 @@ function placeStone(x, y, player) {
 }
 
 function checkWin(x, y, player) {
-  const directions = [[1,0],[0,1],[1,1],[1,-1]];
-  for (const [dx, dy] of directions) {
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  for (const [dx, dy] of dirs) {
     let count = 1;
-    for (let dir = -1; dir <= 1; dir += 2) {
+    for (let d = -1; d <= 1; d += 2) {
       let nx = x, ny = y;
       while (true) {
-        nx += dx * dir;
-        ny += dy * dir;
+        nx += dx * d;
+        ny += dy * d;
         if (nx >= 0 && ny >= 0 && nx < boardSize && ny < boardSize && board[ny][nx] === player) {
           count++;
         } else break;
@@ -101,7 +97,12 @@ function checkWin(x, y, player) {
 
 function cpuMove() {
   const level = +document.getElementById("difficulty").value;
-  const [x, y] = (level === 4 ? minimaxRoot(2) : level === 3 ? smartMove() : level === 2 ? defensiveMove() : randomMove());
+  let move;
+  if (level === 4) move = minimaxRoot(2);
+  else if (level === 3) move = smartMove();
+  else if (level === 2) move = defensiveMove();
+  else move = randomMove();
+  const [x, y] = move;
   placeStone(x, y, 2);
   moveHistory.push({ x, y, player: 2 });
   addMoveLog("CPU", x, y);
@@ -140,7 +141,77 @@ function resetGame() {
   initBoard();
 }
 
-// 既存AI（ランダム/防御/攻防/ミニマックス）※省略可能
+// --- ミニマックス with 近傍限定 ---
+function getCandidateMoves(range = 2) {
+  const candidates = new Set();
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      if (board[y][x] !== 0) {
+        for (let dy = -range; dy <= range; dy++) {
+          for (let dx = -range; dx <= range; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < boardSize && ny < boardSize && board[ny][nx] === 0) {
+              candidates.add(ny * boardSize + nx);
+            }
+          }
+        }
+      }
+    }
+  }
+  return [...candidates].map(i => [i % boardSize, Math.floor(i / boardSize)]);
+}
+
+function minimaxRoot(depth) {
+  let bestScore = -Infinity, bestMove = null;
+  const candidates = getCandidateMoves();
+  for (const [x, y] of candidates) {
+    board[y][x] = 2;
+    const score = minimax(depth - 1, false);
+    board[y][x] = 0;
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = [x, y];
+    }
+  }
+  return bestMove || centerBiasMove();
+}
+
+function minimax(depth, isMax) {
+  if (depth === 0) return evaluateBoard();
+  const candidates = getCandidateMoves();
+  let best = isMax ? -Infinity : Infinity;
+  for (const [x, y] of candidates) {
+    board[y][x] = isMax ? 2 : 1;
+    const score = minimax(depth - 1, !isMax);
+    board[y][x] = 0;
+    best = isMax ? Math.max(best, score) : Math.min(best, score);
+  }
+  return best;
+}
+
+function evaluateBoard() {
+  let score = 0;
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      for (const [dx, dy] of dirs) {
+        let count2 = 0, count1 = 0;
+        for (let i = 0; i < 4; i++) {
+          const nx = x + dx * i, ny = y + dy * i;
+          if (nx < boardSize && ny < boardSize) {
+            if (board[ny][nx] === 2) count2++;
+            if (board[ny][nx] === 1) count1++;
+          }
+        }
+        if (count2 > 0 && count1 === 0) score += Math.pow(10, count2);
+        if (count1 > 0 && count2 === 0) score -= Math.pow(10, count1);
+      }
+    }
+  }
+  return score;
+}
+
+// 他のレベルのAI
 function randomMove() {
   const empty = [];
   for (let y = 0; y < boardSize; y++)
@@ -187,73 +258,6 @@ function centerBiasMove() {
     }
   }
   return best;
-}
-
-function minimaxRoot(depth) {
-  let bestScore = -Infinity, bestMove = null;
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board[y][x] === 0) {
-        board[y][x] = 2;
-        const score = minimax(depth - 1, false);
-        board[y][x] = 0;
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = [x, y];
-        }
-      }
-    }
-  }
-  return bestMove;
-}
-
-function minimax(depth, isMax) {
-  const score = evaluateBoard();
-  if (depth === 0) return score;
-
-  if (isMax) {
-    let maxEval = -Infinity;
-    for (let y = 0; y < boardSize; y++)
-      for (let x = 0; x < boardSize; x++)
-        if (board[y][x] === 0) {
-          board[y][x] = 2;
-          maxEval = Math.max(maxEval, minimax(depth - 1, false));
-          board[y][x] = 0;
-        }
-    return maxEval;
-  } else {
-    let minEval = Infinity;
-    for (let y = 0; y < boardSize; y++)
-      for (let x = 0; x < boardSize; x++)
-        if (board[y][x] === 0) {
-          board[y][x] = 1;
-          minEval = Math.min(minEval, minimax(depth - 1, true));
-          board[y][x] = 0;
-        }
-    return minEval;
-  }
-}
-
-function evaluateBoard() {
-  let score = 0;
-  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      for (const [dx, dy] of dirs) {
-        let count2 = 0, count1 = 0;
-        for (let i = 0; i < 4; i++) {
-          const nx = x + dx * i, ny = y + dy * i;
-          if (nx < boardSize && ny < boardSize) {
-            if (board[ny][nx] === 2) count2++;
-            if (board[ny][nx] === 1) count1++;
-          }
-        }
-        if (count2 > 0 && count1 === 0) score += Math.pow(10, count2);
-        if (count1 > 0 && count2 === 0) score -= Math.pow(10, count1);
-      }
-    }
-  }
-  return score;
 }
 
 initBoard();
